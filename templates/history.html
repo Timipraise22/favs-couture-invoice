@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice History</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f7fa; padding: 40px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; color: #333; }
+        .btn { padding: 8px 12px; margin-right: 5px; text-decoration: none; border-radius: 4px; font-size: 12px; color: white; font-weight: bold;}
+        .btn-view { background: #000; }
+        .btn-pdf { background: #e53e3e; }
+        .btn-jpg { background: #3182ce; }
+        .btn:hover { opacity: 0.8; }
+        .top-nav { margin-bottom: 20px; }
+        .top-nav a { text-decoration: none; color: #2b6cb0; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top-nav">
+        <a href="/">&larr; Back to Create Invoice</a>
+    </div>
+    <h1>Invoice History</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Inv #</th>
+                <th>Client Name</th>
+                <th>Issue Date</th>
+                <th>Amount Due</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for invoice in invoices %}
+            <tr>
+                <td>#{{ invoice.invoice_number }}</td>
+                <td>{{ invoice.client_name }}</td>
+                <td>{{ invoice.issue_date }}</td>
+                <td>₦{{ invoice.amount_due }}</td>
+                <td>{% if invoice.paid_in_full %}<span style="color: green; font-weight: bold;">✔ Paid</span>{% else %}<span style="color: #d97706; font-weight: bold;">Open</span>{% endif %}</td>
+                <td>
+                    <a href="/invoice/{{ invoice.id }}" class="btn btn-view">View</a>
+                    <a href="/download/pdf/{{ invoice.id }}" class="btn btn-pdf">PDF</a>
+                    <a href="/download/jpeg/{{ invoice.id }}" class="btn btn-jpg">JPG</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align: center; color: #888;">No invoices generated yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

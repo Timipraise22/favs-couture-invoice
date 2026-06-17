@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice - Fav's Couture</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --brand-color: #C0145A; --text-main: #222222; --text-light: #555555; --line-color: #A0A0A0; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; color: var(--text-main); background-color: #ffffff; font-size: 13px; line-height: 1.6; margin: 0; padding: 0; }
+        @page { size: A4 portrait; margin: 0; }
+        
+        @media print {
+            html, body { width: auto; min-width: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { margin: 0; padding: 0; background: #fff; }
+            .invoice-container { width: auto !important; max-width: 100% !important; margin: 0; padding: 0.5cm 0.8cm 0.5cm !important; }
+            .btn, .payment-section, .payment-history form, .payment-history button, .payment-history a, .payment-history input { display: none !important; }
+            table { page-break-inside: avoid; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+        }
+
+        .invoice-container { 
+        width: 800px; 
+        max-width: 100%; 
+        margin: 0 auto; 
+        padding: 40px 40px 20px; /* Added generous whitespace around the whole document */
+        position: relative; 
+        }
+        
+        /* 1. FIXED HEADER LAYOUT (Replaced Flexbox with Table layout for wkhtmltopdf) */
+        .header { display: table; width: 100%; margin-bottom: 20px; }
+        .header-left { display: table-cell; vertical-align: top; width: 60%; }
+        .header-right { display: table-cell; vertical-align: top; width: 40%; text-align: right; }
+        
+        .header-left .logo { margin-bottom: 8px; width: 130px; height: auto; overflow: visible; }
+        .header-left .logo img { display: block; width: 100%; height: auto; object-fit: contain; }
+        
+        .header-right h1 { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; margin: 0 0 8px 0; color: var(--text-main); letter-spacing: 0.02em; }
+        
+        /* Inline-block allows it to adhere to text-align: right from the parent */
+        .invoice-meta-box { margin-top: 4px; background: #eef6ff; padding: 10px 12px; border-radius: 12px; border: 1px solid #dbeafe; max-width: 220px; display: inline-block; text-align: left; }
+        .invoice-meta-box .meta-label { display: block; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-color); margin-bottom: 3px; }
+        .invoice-meta-box .meta-value { font-size: 13px; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+        .invoice-meta-box .meta-date { font-size: 11px; color: var(--text-light); margin-top: 3px; }
+        
+        .billed-to { font-style: italic; font-size: 14px; color: var(--text-light); margin: 0 0 6px 0; }
+        .company-info { margin: 0 0 8px 0; color: var(--text-light); font-size: 12px; line-height: 1.35; }
+        .company-info strong { display: block; font-weight: 700; font-size: 17px; color: #222; margin-bottom: 4px; }
+        .invoice-billing { margin-top: 4px; margin-bottom: 24px; }
+        .customer-details { font-weight: 700; font-size: 18px; margin: 0; color: #222; line-height: 1.3; }
+        
+        .payment-section { margin-bottom: 30px; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .payment-section label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .payment-section input { width: 100%; max-width: 220px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 12px; }
+        .payment-section button { background: #3182ce; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; }
+        
+        .payment-history { margin-bottom: 30px; }
+        .payment-history table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .payment-history th, .payment-history td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        .payment-history th { background: #f1f5f9; }
+        .payment-status { font-weight: 700; color: green; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 40px; table-layout: fixed; }
+        th { text-align: left; font-weight: 700; padding: 15px 10px; border-top: 1px solid var(--line-color); border-bottom: 2px solid var(--line-color); color: var(--text-main); }
+        td { padding: 15px 10px; border-bottom: 1px solid #E0E0E0; color: var(--text-light); vertical-align: top; }
+        td:first-child { width: 56%; }
+        .col-qty { width: 13%; }
+        .col-price { width: 17%; }
+        .col-total { width: 14%; }
+        .col-qty, .col-price, .col-total { text-align: center; }
+        .item-desc { font-size: 11px; color: #888; margin-top: 6px; }
+        
+        /* 2. FIXED TOTALS LAYOUT (Using float instead of flexbox) */
+        .totals-wrapper { overflow: hidden; margin-bottom: 50px; }
+        .totals-table { float: right; width: 320px; }
+        .totals-table td { border: none; padding: 10px 12px; color: var(--text-main); }
+        .totals-table tr td:first-child { text-align: left; padding-right: 20px; }
+        .totals-table tr td.value { text-align: right; }
+        
+        /* 3. FIXED FOOTER LAYOUT */
+        .footer { display: table; width: 100%; margin-top: 40px; }
+        .footer > div { display: table-cell; vertical-align: bottom; }
+        .footer h2 { font-size: 24px; margin: 0 0 8px 0; color: var(--text-main); }
+        .footer p { font-size: 15px; color: var(--text-main); line-height: 1.6; margin: 0; }
+        
+        .btn { background: #222; color: #fff; padding: 10px 20px; text-decoration: none; font-size: 12px; margin: 0 10px; border: none; cursor: pointer; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="invoice-container">
+    <div class="header">
+        <div class="header-left">
+            <div class="logo logo-placeholder"><img src="{{ logo_data_uri }}" alt="Logo"></div>
+            <div class="company-info">10, Amadi crescent,<br>Off LASU Close,<br>Ojo PPL, Lagos.<br>Nigeria<br>+234 810 026 6582</div>
+        </div>
+        <div class="header-right">
+            <h1>Invoice</h1>
+            <div class="invoice-meta-box">
+                <span class="meta-label">Invoice</span>
+                <span class="meta-value">No. {{ invoice_id }}</span>
+                <span class="meta-date">{{ data.issue_date }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="invoice-billing">
+        <p class="billed-to">Billed to:</p>
+        <p class="customer-details">{{ data.client_name }}<br>{{ data.client_phone }}</p>
+    </div>
+
+    {% if data.payments and data.payments | length > 0 %}
+    <div class="payment-history">
+        <strong>Payment History</strong>
+        <table>
+            <thead>
+                <tr><th>Date</th><th>Amount Paid</th><th>Note</th></tr>
+            </thead>
+            <tbody>
+                {% for payment in data.payments %}
+                <tr>
+                    <td>{{ payment.date }}</td>
+                    <td>₦{{ payment.amount }}</td>
+                    <td>{{ payment.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if show_buttons and not data.paid_in_full %}
+    <div class="payment-section">
+        <form action="/invoice/{{ invoice_id }}/payment" method="POST">
+            <label for="payment_amount">Record Part Payment</label>
+            <input type="number" name="payment_amount" id="payment_amount" step="0.01" min="0" placeholder="Amount paid">
+            <button type="submit">Save Payment</button>
+        </form>
+    </div>
+    {% elif data.paid_in_full %}
+    <div class="payment-section">
+        <p class="payment-status">✔ Fully Paid</p>
+    </div>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th class="col-qty">Quantity</th>
+                <th class="col-price">Unit Price</th>
+                <th class="col-total">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data['items'] %}
+            <tr>
+                <td>
+                    <span style="color: #222;">{{ item.name }}</span>
+                    <div class="item-desc">{{ item.description | safe }}</div>
+                </td>
+                <td class="col-qty">{{ item.quantity }}</td>
+                <td class="col-price">₦{{ "{:,.2f}".format(item.price | float) }}</td>
+                <td class="col-total">₦{{ "{:,.2f}".format((item.price | float) * (item.quantity | int)) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals-wrapper">
+        <table class="totals-table">
+            <tr><td>Subtotal</td><td class="value">₦{{ "{:,.2f}".format(data.subtotal|float) }}</td></tr>
+            <tr><td>Discount</td><td class="value">₦{{ "{:,.2f}".format(data.discount|float) }}</td></tr>
+            <tr><td>Paid Amount</td><td class="value">₦{{ "{:,.2f}".format(data.paid_amount|float) }}</td></tr>
+            <tr><td><strong>Amount Due</strong></td><td class="value"><strong>₦{{ "{:,.2f}".format(data.amount_due|float) }}</strong></td></tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        <div>
+            <h2>Thank You</h2>
+            <p>Bank: {{ data.bank }}<br>Account: {{ data.account_name }}<br>Number: {{ data.account_no }}</p>
+        </div>
+    </div>
+
+    {% if show_buttons %}
+    <div style="text-align: center; margin-top: 40px;">
+        <a href="/download/pdf/{{ invoice_id }}" class="btn">Download PDF</a>
+        <a href="/download/jpeg/{{ invoice_id }}" class="btn">Download JPEG</a>
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
